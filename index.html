@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文章列表</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .article-list {
+            list-style: none;
+            padding: 0;
+        }
+        .article-item {
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        .article-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        .article-title {
+            font-size: 20px;
+            margin: 0 0 10px 0;
+            color: #2c3e50;
+        }
+        .article-date {
+            color: #7f8c8d;
+            font-size: 14px;
+            margin-bottom: 10px;
+            display: block;
+        }
+        .article-excerpt {
+            color: #555;
+            line-height: 1.5;
+        }
+        .article-link {
+            display: inline-block;
+            margin-top: 10px;
+            color: #3498db;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .article-link:hover {
+            text-decoration: underline;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-style: italic;
+            color: #7f8c8d;
+        }
+        .no-articles {
+            text-align: center;
+            padding: 40px 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .error-message {
+            background-color: #f2dede;
+            color: #a94442;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .add-article-btn {
+            display: block;
+            width: 200px;
+            margin: 0 auto 30px;
+            background-color: #2ecc71;
+            color: white;
+            text-align: center;
+            padding: 12px 0;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        .add-article-btn:hover {
+            background-color: #27ae60;
+        }
+    </style>
+</head>
+<body>
+    <h1>文章列表</h1>
+    <a href="add-article.html" class="add-article-btn">新增文章</a>
+    
+    <div id="articleContainer">
+        <div class="loading">載入中，請稍候...</div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 從配置文件獲取URL
+            fetch('config.json')
+                .then(response => response.json())
+                .then(config => {
+                    fetchArticles(config.Url);
+                })
+                .catch(error => {
+                    showError('無法讀取配置文件：' + error.message);
+                });
+        });
+
+        function fetchArticles(url) {
+            // 創建XMLHttpRequest對象
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', url, true);
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+            
+            xhr.onload = function() {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        displayArticles(response);
+                    } catch (error) {
+                        showError('解析返回數據時出錯：' + error.message);
+                    }
+                } else {
+                    showError('請求失敗，狀態碼：' + xhr.status);
+                }
+            };
+            
+            xhr.onerror = function() {
+                showError('發生網路錯誤，請檢查連接');
+            };
+            
+            // 發送請求，參數為page=列表
+            xhr.send('page=列表');
+        }
+
+        function displayArticles(response) {
+            const container = document.getElementById('articleContainer');
+            container.innerHTML = '';
+            
+            // 檢查是否有數據
+            if (response.state === 1) {
+                container.innerHTML = '<div class="no-articles">目前沒有任何文章</div>';
+                return;
+            }
+            
+            // 檢查是否有文章數據
+            if (!response.data || !Array.isArray(response.data) || response.data.length === 0) {
+                container.innerHTML = '<div class="no-articles">目前沒有任何文章</div>';
+                return;
+            }
+            
+            // 創建文章列表
+            const articleList = document.createElement('ul');
+            articleList.className = 'article-list';
+            
+            response.data.forEach(article => {
+                const articleItem = document.createElement('li');
+                articleItem.className = 'article-item';
+                
+                articleItem.innerHTML = `
+                    <h2 class="article-title">${escapeHTML(article.title)}</h2>
+                    <span class="article-date">${escapeHTML(article.date)}</span>
+                    <p class="article-excerpt">${escapeHTML(article.excerpt)}</p>
+                    <a href="view-article.html?id=${article.id}" class="article-link">閱讀全文</a>
+                `;
+                
+                articleList.appendChild(articleItem);
+            });
+            
+            container.appendChild(articleList);
+        }
+
+        function showError(message) {
+            const container = document.getElementById('articleContainer');
+            container.innerHTML = `<div class="error-message">${message}</div>`;
+        }
+
+        // 用於防止XSS攻擊的HTML轉義函數
+        function escapeHTML(str) {
+            if (!str) return '';
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+    </script>
+</body>
+</html> 
