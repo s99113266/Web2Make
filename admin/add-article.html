@@ -106,8 +106,13 @@
             // 獲取表單數據
             const formData = new FormData(this);
             
+            // 將文章內容的換行轉換為HTML的<br>標籤
+            const originalText = formData.get('text');
+            const htmlText = originalText.replace(/\n/g, '<br>');
+            formData.set('text', htmlText);
+            
             // 讀取配置文件獲取URL
-            fetch('config.json')
+            fetch('../config.json')
                 .then(response => response.json())
                 .then(config => {
                     // 使用AJAX發送表單數據
@@ -120,13 +125,24 @@
                         messageDiv.style.display = 'block';
                         
                         if (xhr.status >= 200 && xhr.status < 300) {
-                            messageDiv.className = 'success';
-                            messageDiv.textContent = '文章提交成功！';
-                            document.getElementById('articleForm').reset();
-                            setTodayDate(); // 重設日期
+                            try {
+                                const response = JSON.parse(xhr.responseText);
+                                if (response.state === 0) {
+                                    messageDiv.className = 'success';
+                                    messageDiv.textContent = '文章提交成功！';
+                                    document.getElementById('articleForm').reset();
+                                    setTodayDate(); // 重設日期
+                                } else {
+                                    messageDiv.className = 'error';
+                                    messageDiv.textContent = '文章提交失敗，請檢查管理員密碼或稍後再試。';
+                                }
+                            } catch (error) {
+                                messageDiv.className = 'error';
+                                messageDiv.textContent = '伺服器回應格式錯誤：' + error.message;
+                            }
                         } else {
                             messageDiv.className = 'error';
-                            messageDiv.textContent = '提交失敗，請稍後再試。';
+                            messageDiv.textContent = '提交失敗，狀態碼：' + xhr.status;
                         }
                     };
                     

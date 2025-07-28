@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>文章列表</title>
+    <title>管理員頁面 - 文章管理</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -16,6 +16,45 @@
             color: #333;
             text-align: center;
             margin-bottom: 30px;
+        }
+        .admin-header {
+            background-color: #e74c3c;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .admin-header h2 {
+            margin: 0;
+            font-size: 18px;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        .action-btn {
+            background-color: #2ecc71;
+            color: white;
+            text-align: center;
+            padding: 12px 24px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: background-color 0.2s;
+            min-width: 150px;
+        }
+        .action-btn:hover {
+            background-color: #27ae60;
+        }
+        .action-btn.secondary {
+            background-color: #3498db;
+        }
+        .action-btn.secondary:hover {
+            background-color: #2980b9;
         }
         .article-list {
             list-style: none;
@@ -47,16 +86,42 @@
         .article-excerpt {
             color: #555;
             line-height: 1.5;
+            margin-bottom: 15px;
+        }
+        .article-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
         }
         .article-link {
             display: inline-block;
-            margin-top: 10px;
             color: #3498db;
             text-decoration: none;
             font-weight: bold;
+            padding: 5px 10px;
+            border: 1px solid #3498db;
+            border-radius: 4px;
+            transition: all 0.2s;
         }
         .article-link:hover {
-            text-decoration: underline;
+            background-color: #3498db;
+            color: white;
+        }
+        .edit-link {
+            color: #f39c12;
+            border-color: #f39c12;
+        }
+        .edit-link:hover {
+            background-color: #f39c12;
+            color: white;
+        }
+        .delete-link {
+            color: #e74c3c;
+            border-color: #e74c3c;
+        }
+        .delete-link:hover {
+            background-color: #e74c3c;
+            color: white;
         }
         .loading {
             text-align: center;
@@ -78,22 +143,6 @@
             border-radius: 4px;
             margin-bottom: 20px;
             text-align: center;
-        }
-        .add-article-btn {
-            display: block;
-            width: 200px;
-            margin: 0 auto 30px;
-            background-color: #2ecc71;
-            color: white;
-            text-align: center;
-            padding: 12px 0;
-            border-radius: 4px;
-            text-decoration: none;
-            font-weight: bold;
-            transition: background-color 0.2s;
-        }
-        .add-article-btn:hover {
-            background-color: #27ae60;
         }
         .pagination {
             display: flex;
@@ -137,8 +186,17 @@
     </style>
 </head>
 <body>
-    <h1>文章列表</h1>
-    <a href="admin/add-article.html" class="add-article-btn">新增文章</a>
+    <div class="admin-header">
+        <h2>🔧 管理員控制台</h2>
+        <p>歡迎使用文章管理系統</p>
+    </div>
+    
+    <h1>文章管理</h1>
+    
+    <div class="action-buttons">
+        <a href="add-article.html" class="action-btn">📝 新增文章</a>
+        <a href="../index.html" class="action-btn secondary">👁️ 查看前台</a>
+    </div>
     
     <div id="articleContainer">
         <div class="loading">載入中，請稍候...</div>
@@ -167,7 +225,7 @@
             }
 
             // 從配置文件獲取URL
-            fetch('config.json')
+            fetch('../config.json')
                 .then(response => response.json())
                 .then(config => {
                     configUrl = config.Url;
@@ -243,8 +301,21 @@
                     <h2 class="article-title">${escapeHTML(article.title)}</h2>
                     <span class="article-date">${escapeHTML(article.date)}</span>
                     <p class="article-excerpt">${escapeHTML(article.excerpt)}</p>
-                    <a href="view-article.html?id=${article.id}" class="article-link" target="_blank">閱讀全文</a>
+                    <div class="article-actions">
+                        <a href="../view-article.html?id=${article.id}" class="article-link" target="_blank">👁️ 預覽</a>
+                        <a href="edit-article.html?id=${article.id}" class="article-link edit-link">✏️ 編輯</a>
+                        <a href="#" class="article-link delete-link" data-article-id="${article.id}" data-article-title="${escapeHTML(article.title)}">🗑️ 刪除</a>
+                    </div>
                 `;
+                
+                // 為刪除按鈕添加事件監聽器
+                const deleteBtn = articleItem.querySelector('.delete-link');
+                deleteBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const articleId = this.getAttribute('data-article-id');
+                    const articleTitle = this.getAttribute('data-article-title');
+                    deleteArticle(articleId, articleTitle, articleItem);
+                });
                 
                 articleList.appendChild(articleItem);
             });
@@ -267,6 +338,114 @@
             } else {
                 // 如果沒有分頁信息，隱藏分頁組件
                 document.getElementById('paginationContainer').style.display = 'none';
+            }
+        }
+
+        function deleteArticle(articleId, articleTitle, articleElement) {
+            if (confirm(`確定要刪除文章「${articleTitle}」嗎？此操作無法復原。`)) {
+                // 詢問管理員密碼
+                const password = prompt('請輸入管理員密碼：');
+                if (!password) {
+                    return; // 使用者取消輸入
+                }
+                
+                // 顯示刪除中狀態
+                const deleteBtn = articleElement.querySelector('.delete-link');
+                const originalText = deleteBtn.innerHTML;
+                deleteBtn.innerHTML = '⏳ 刪除中...';
+                deleteBtn.style.pointerEvents = 'none';
+                
+                // 從配置文件獲取URL
+                fetch('../config.json')
+                    .then(response => response.json())
+                    .then(config => {
+                        // 使用AJAX發送刪除請求
+                        const xhr = new XMLHttpRequest();
+                        xhr.open('POST', config.Url, true);
+                        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+                        
+                        xhr.onload = function() {
+                            if (xhr.status >= 200 && xhr.status < 300) {
+                                try {
+                                    const response = JSON.parse(xhr.responseText);
+                                    if (response.state === 0) {
+                                        // 成功刪除，先添加淡出動畫
+                                        articleElement.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
+                                        articleElement.style.opacity = '0';
+                                        articleElement.style.transform = 'translateX(-100%)';
+                                        
+                                        // 500ms 後移除元素並顯示成功訊息
+                                        setTimeout(() => {
+                                            articleElement.remove();
+                                            
+                                            // 顯示成功訊息
+                                            const successMsg = document.createElement('div');
+                                            successMsg.style.cssText = `
+                                                position: fixed;
+                                                top: 20px;
+                                                right: 20px;
+                                                background-color: #2ecc71;
+                                                color: white;
+                                                padding: 15px 20px;
+                                                border-radius: 5px;
+                                                box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+                                                z-index: 1000;
+                                                font-weight: bold;
+                                            `;
+                                            successMsg.textContent = '✅ 文章刪除成功！';
+                                            document.body.appendChild(successMsg);
+                                            
+                                            // 3秒後移除成功訊息
+                                            setTimeout(() => {
+                                                successMsg.style.transition = 'opacity 0.3s ease-out';
+                                                successMsg.style.opacity = '0';
+                                                setTimeout(() => successMsg.remove(), 300);
+                                            }, 3000);
+                                            
+                                            // 檢查是否還有文章，沒有則顯示空狀態
+                                            const remainingArticles = document.querySelectorAll('.article-item');
+                                            if (remainingArticles.length === 0) {
+                                                const container = document.getElementById('articleContainer');
+                                                container.innerHTML = '<div class="no-articles">目前沒有任何文章</div>';
+                                            }
+                                        }, 500);
+                                    } else {
+                                        // 恢復按鈕狀態
+                                        deleteBtn.innerHTML = originalText;
+                                        deleteBtn.style.pointerEvents = 'auto';
+                                        alert('刪除失敗，請檢查管理員密碼或稍後再試。');
+                                    }
+                                } catch (error) {
+                                    // 恢復按鈕狀態
+                                    deleteBtn.innerHTML = originalText;
+                                    deleteBtn.style.pointerEvents = 'auto';
+                                    alert('伺服器回應格式錯誤：' + error.message);
+                                }
+                            } else {
+                                // 恢復按鈕狀態
+                                deleteBtn.innerHTML = originalText;
+                                deleteBtn.style.pointerEvents = 'auto';
+                                alert('刪除失敗，狀態碼：' + xhr.status);
+                            }
+                        };
+                        
+                        xhr.onerror = function() {
+                            // 恢復按鈕狀態
+                            deleteBtn.innerHTML = originalText;
+                            deleteBtn.style.pointerEvents = 'auto';
+                            alert('發生網路錯誤，請檢查連接。');
+                        };
+                        
+                        // 發送請求，參數為page=刪除、id和pwd
+                        const params = `page=刪除&id=${encodeURIComponent(articleId)}&pwd=${encodeURIComponent(password)}`;
+                        xhr.send(params);
+                    })
+                    .catch(error => {
+                        // 恢復按鈕狀態
+                        deleteBtn.innerHTML = originalText;
+                        deleteBtn.style.pointerEvents = 'auto';
+                        alert('無法讀取配置文件：' + error.message);
+                    });
             }
         }
 
