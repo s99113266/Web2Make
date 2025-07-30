@@ -251,11 +251,42 @@
             
             xhr.onload = function() {
                 if (xhr.status >= 200 && xhr.status < 300) {
+                    // 直接在頁面上顯示伺服器返回的原始字串
+                    const container = document.getElementById('articleContainer');
+                    container.innerHTML = `
+                        <div style="background: #f8f9fa; padding: 20px; border-radius: 4px; margin-bottom: 20px;">
+                            <h3>🔍 伺服器返回的原始資料：</h3>
+                            <pre style="background: white; padding: 15px; border: 1px solid #ddd; border-radius: 4px; overflow: auto; white-space: pre-wrap; word-wrap: break-word;">${escapeHTML(xhr.responseText)}</pre>
+                            <p><strong>字串長度：</strong> ${xhr.responseText.length} 字符</p>
+                            <p><strong>HTTP 狀態碼：</strong> ${xhr.status}</p>
+                        </div>
+                    `;
+                    
                     try {
+                        console.log('伺服器回應:', xhr.responseText);
                         const response = JSON.parse(xhr.responseText);
+                        
+                        // 如果 JSON 解析成功，顯示解析後的內容
+                        container.innerHTML += `
+                            <div style="background: #d4edda; padding: 20px; border-radius: 4px; margin-bottom: 20px;">
+                                <h3>✅ JSON 解析成功</h3>
+                                <p>正在載入文章列表...</p>
+                            </div>
+                        `;
+                        
                         displayArticles(response);
                     } catch (error) {
-                        showError('解析返回數據時出錯：' + error.message);
+                        console.error('JSON 解析錯誤:', error);
+                        console.error('原始回應:', xhr.responseText);
+                        
+                        // 在頁面上顯示 JSON 錯誤詳情
+                        container.innerHTML += `
+                            <div style="background: #f8d7da; padding: 20px; border-radius: 4px; color: #721c24;">
+                                <h3>❌ JSON 解析錯誤</h3>
+                                <p><strong>錯誤訊息：</strong> ${error.message}</p>
+                                <p><strong>錯誤位置：</strong> 第 ${getLineFromPosition(xhr.responseText, getPositionFromError(error.message))} 行</p>
+                            </div>
+                        `;
                     }
                 } else {
                     showError('請求失敗，狀態碼：' + xhr.status);
@@ -557,6 +588,19 @@
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#039;');
+        }
+
+        // 從錯誤訊息中提取位置資訊
+        function getPositionFromError(errorMessage) {
+            const match = errorMessage.match(/at position (\d+)/);
+            return match ? parseInt(match[1]) : 0;
+        }
+
+        // 根據位置計算行號
+        function getLineFromPosition(text, position) {
+            const beforePosition = text.substring(0, position);
+            const lineNumber = beforePosition.split('\n').length;
+            return lineNumber;
         }
     </script>
 </body>
